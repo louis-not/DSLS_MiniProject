@@ -1,4 +1,4 @@
-/****** Script for SelectTopNRows command from SSMS  ******/
+/****** Script for DSLS: DE Mini Project  ******/
 
 /*
 Soal Intermediate Queries 
@@ -57,6 +57,7 @@ SELECT TOP (5) OrderDetails.[OrderID],
   WHERE Products.[ProductName] = 'Chai' 
     AND year(Orders.[OrderDate]) = 1997 
 	AND month(Orders.[OrderDate]) = 6;
+
 /*
 Nomor 5
 */
@@ -77,6 +78,84 @@ FROM Y)
 Select TotalPriceCategory, count(DISTINCT [OrderID]) AS TOTAL_ORDERID
 From X
 Group by TotalPriceCategory
+
 /*
 Nomor 6
 */
+SELECT Customers.CompanyName, SUM(X.Quantity) AS Order_Quantity
+FROM [Northwind].[dbo].[Customers] AS Customers 
+LEFT JOIN (
+	SELECT Orders.CustomerID, Order_Details.Quantity
+	FROM [Northwind].[dbo].[Orders] AS Orders
+	JOIN [Northwind].[dbo].[Order Details] AS Order_Details 
+		ON Orders.OrderID = Order_Details.OrderID
+	WHERE YEAR(Orders.OrderDate) = 1997 
+	) AS X 
+	ON Customers.CustomerID = X.CustomerID 
+GROUP BY Customers.CompanyName
+HAVING SUM(X.Quantity) > 500 
+ORDER BY SUM(X.Quantity) DESC;
+
+/*
+Nomor 7
+*/
+SELECT X.Bulan, X.ProductName, X.Quantity
+FROM (
+	SELECT MONTH(Orders.OrderDate) AS Bulan,
+			Products.ProductName,
+			Order_Details.Quantity,
+			ROW_NUMBER() 
+				OVER (
+					PARTITION BY MONTH(Orders.OrderDate) 
+					Order BY Order_Details.Quantity DESC) AS Product_rank
+	FROM [Northwind].[dbo].[Orders] AS Orders
+	JOIN [Northwind].[dbo].[Order Details] AS Order_Details 
+		ON Orders.OrderID = Order_Details.OrderID
+	JOIN [Northwind].[dbo].[Products] AS Products
+		ON Order_Details.ProductID = Products.ProductID
+	WHERE YEAR(Orders.OrderDate) = 1997 
+	) AS X
+WHERE X.Product_rank <=5 ;
+
+/*
+Nomor 8
+*/
+CREATE VIEW Nomor8 AS
+SELECT Order_Details.OrderID, 
+		Order_Details.ProductID,
+		Products.ProductName,
+		Order_Details.UnitPrice,
+		Order_Details.Discount,
+		Order_Details.UnitPrice *(1-Order_Details.Discount) AS DiscountPrice
+FROM [Northwind].[dbo].[Order Details] AS Order_Details 
+JOIN [Northwind].[dbo].[Products] AS Products
+	ON Order_Details.ProductID = Products.ProductID 
+
+/*
+Nomor 9
+*/
+-- Pembuatan View
+CREATE VIEW Nomor9 AS
+SELECT Orders.CustomerID,
+		Customers.CompanyName,
+		Orders.OrderID,
+		Orders.OrderDate,
+		Orders.RequiredDate,
+		Orders.ShippedDate
+FROM [Northwind].[dbo].[Orders] AS Orders
+JOIN [Northwind].[dbo].[Customers] AS Customers
+	ON Orders.CustomerID = Customers.CustomerID
+
+-- Pembuatan Prosedur
+CREATE PROCEDURE print_invoice
+ @CustomerID VARCHAR(100)
+AS
+BEGIN
+SET NOCOUNT ON;
+SELECT * FROM Nomor9
+WHERE CustomerID = @CustomerID
+END
+GO
+
+-- Pengujian Prosedur
+EXEC print_invoice @CustomerID = 'HANAR';
