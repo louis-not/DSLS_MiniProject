@@ -44,7 +44,7 @@ SELECT view_rfm.CustomerID,
 	CONCAT(R, F, M) as rfm_class
 	FROM view_rfm;
 
-CREATE TABLE table_rfm_result AS
+CREATE VIEW view_rfm_result AS
 SELECT *,
 	CASE 
 		WHEN rfm_class LIKE '1[1-2][1-2]' THEN 'Best Customers'
@@ -55,3 +55,6 @@ SELECT *,
 	END AS rfm_category
 	FROM view_rfm_class
 	
+SELECT * 
+	INTO table_rfm_result
+	FROM view_rfm_result;
