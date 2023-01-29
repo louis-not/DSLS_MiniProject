@@ -109,3 +109,67 @@ SELECT *
 SELECT * 
 	INTO table_product_to_rfm
 	FROM view_product_to_rfm;
+
+/*
+Supplier Analysis: Performing supplier on popular category
+*/
+
+-- target category
+SELECT *
+	FROM view_product_to_rfm2
+	WHERE rfm_category <> 'Need Attention/Hibernating'
+
+-- From the result, category with big potential for high 
+-- volume frequent pruchases are Confections and Beverages. 
+-- with follow up on Diary Products for big potential customer
+
+CREATE VIEW view_company_od AS
+SELECT O.CustomerID,
+	COUNT(O.OrderID) AS Quantity,
+	P.ProductName,
+	C.CategoryName,
+	S.CompanyName
+	FROM [Northwind].[dbo].[Orders] AS O
+	JOIN [Northwind].[dbo].[Order Details] AS OD 
+	ON O.OrderID = OD.OrderID
+	JOIN [Northwind].[dbo].[Products] AS P
+	ON OD.ProductID=P.ProductID 
+	JOIN [Northwind].[dbo].[Categories] AS C
+	ON P.CategoryID = C.CategoryID
+	JOIN [Northwind].[dbo].[Suppliers] AS S
+	ON P.SupplierID = S.SupplierID
+	WHERE YEAR(O.OrderDate) = 1997
+	GROUP BY O.CustomerID, P.ProductName, 
+	C.CategoryName, S.CompanyName;
+
+-- Filter Data according to category name
+CREATE VIEW view_filtered_cod2 AS
+SELECT RFM.CustomerID, RFM.rfm_category,
+	COD.Quantity, COD.ProductName, COD.CategoryName, COD.CompanyName
+	FROM view_rfm_result3 AS RFM
+	LEFT JOIN view_company_od AS COD
+	ON RFM.CustomerID = COD.CustomerID
+	WHERE RFM.rfm_category IS NOT NULL AND (
+		COD.CategoryName = 'Confections' OR
+		COD.CategoryName = 'Beverages' OR
+		COD.CategoryName = 'Dairy Products')
+
+-- Pivot Company Name 
+CREATE VIEW view_company_recommendation AS
+SELECT *
+	FROM (
+		SELECT X.CompanyName, X.CategoryName, X.TotalQuantity,
+			DENSE_RANK() OVER (PARTITION BY X.CategoryName
+				ORDER BY X.TotalQuantity DESC) AS Rank_
+			FROM (
+				SELECT CompanyName, CategoryName, 
+					SUM(Quantity) AS TotalQuantity
+					FROM view_filtered_cod2
+					GROUP BY CompanyName, CategoryName
+				) AS X
+	) AS Y
+	WHERE Y.Rank_ <= 5
+
+SELECT * 
+	INTO table_company_recommendation
+	FROM view_company_recommendation;
